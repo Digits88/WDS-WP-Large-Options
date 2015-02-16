@@ -5,9 +5,9 @@
   Plugin URI: http://webdevstudios.com
   Description: Allows larger options to be stored in custom post type to prevent
   all_options from overflowing 1MB value limit.
-  Author: prettyboymp, voceplatforms, webdevstudios
+  Author: webdevstudios, prettyboymp, voceplatforms
   Version: 1.0.1
-  Author URI: http://www.vocecommunications.com
+  Author URI: http://webdevstudios.com
 
   GNU General Public License, Free Software Foundation <http://creativecommons.org/licenses/GPL/2.0/>
 
@@ -28,13 +28,13 @@
  */
 
 define( 'WLO_POST_TYPE', 'wlo_option' );
-define( 'WLO_META_KEY', 'wp-large-option-value');
+define( 'WLO_META_KEY', 'wp-large-option-value' );
 
 /**
  * Add a new option.
  * @param string $option
  * @param mixed $value
- * @return boolean 
+ * @return boolean
  */
 function wlo_add_option( $option, $value ) {
 	$option = wlo_get_option_name( $option );
@@ -67,7 +67,7 @@ function wlo_add_option( $option, $value ) {
  * Update or add an option
  * @param string $option
  * @param mixed $newvalue
- * @return boolean 
+ * @return boolean
  */
 function wlo_update_option( $option, $newvalue ) {
 	$option = wlo_get_option_name( $option );
@@ -96,7 +96,7 @@ function wlo_update_option( $option, $newvalue ) {
 /**
  * Deletes the option
  * @param string $option
- * @return boolean 
+ * @return boolean
  */
 function wlo_delete_option( $option ) {
 	$option = wlo_get_option_name( $option );
@@ -113,7 +113,7 @@ function wlo_delete_option( $option ) {
  * Returns the option
  * @param string $option
  * @param mixed $default
- * @return mixed 
+ * @return mixed
  */
 function wlo_get_option( $option, $default = false ) {
 	$option = wlo_get_option_name( $option );
@@ -125,7 +125,7 @@ function wlo_get_option( $option, $default = false ) {
 
 	if ( !( $post_id = wlo_get_option_post_id( $option ) ) )
 		return $default;
-	
+
 	if ( false === ($value = get_post_meta( $post_id, WLO_META_KEY, true )) ) {
 		return $default;
 	}
@@ -135,7 +135,7 @@ function wlo_get_option( $option, $default = false ) {
 /**
  * Returns the post that is storing the specific option
  * @param string $option
- * @return bool|object 
+ * @return bool|object
  */
 function wlo_get_option_post_id( $option ) {
 	$option = wlo_get_option_name( $option );
@@ -160,7 +160,7 @@ function wlo_get_option_name( $option ) {
 	$option = trim( $option );
 
 	$option = sanitize_title( $option );
-	
+
 	if ( empty( $option ) )
 		return false;
 
