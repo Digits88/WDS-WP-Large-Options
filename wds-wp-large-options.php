@@ -1,11 +1,11 @@
 <?php
 
 /*
-  Plugin Name: WP Large Options
-  Plugin URI: http://www.vocecommunications.com
+  Plugin Name: WDS WP Large Options
+  Plugin URI: http://webdevstudios.com
   Description: Allows larger options to be stored in custom post type to prevent
   all_options from overflowing 1MB value limit.
-  Author: prettyboymp, voceplatforms
+  Author: prettyboymp, voceplatforms, webdevstudios
   Version: 1.0.1
   Author URI: http://www.vocecommunications.com
 
