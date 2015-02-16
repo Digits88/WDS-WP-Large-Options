@@ -1,7 +1,12 @@
 # WDS WP Large Options
 
-A replacement for the options API. Original context can be found at the [WordPress VIP site](http://vip.wordpress.com/plugins/wp-large-options)
-. This is a fork of the [original version](https://github.com/voceconnect/wp-large-options) by [Voce Connect](http://voceplatforms.com/). This version falls back to the options API if the wp-large-option version cannot be found.
+Allow storage of options larger than 1M in a cache-safe manner. Uses a custom post type.
+
+> You may wish to store a larger option value than is recommended on WordPress.com. If your option data will exceed 400K, or is of an unpredictable size (such as an HTML fragment etc.) you should use the wp_large_options plugin to store the option in a cache-safe manner. Failure to do this could result in the option not being cached, and instead fetched repeatedly from the DB, which could cause performance problems.
+
+-- [WordPress VIP](http://vip.wordpress.com/plugins/wp-large-options)
+
+This library is a fork of the [original version](https://github.com/voceconnect/wp-large-options) by [Voce Connect](http://voceplatforms.com/) and this version falls back to the options API if the wp-large-option version cannot be found.
 
 The API is very similar to the [WordPress Options API](http://codex.wordpress.org/Options_API) and is intended to be an optional replacement.
 
