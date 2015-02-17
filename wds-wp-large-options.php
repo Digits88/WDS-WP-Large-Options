@@ -34,7 +34,6 @@ class WDS_WP_Large_Options {
 
 	protected $sanitized = array();
 	protected $post_ids  = array();
-
 	protected static $single_instance = null;
 
 	/**
@@ -52,29 +51,6 @@ class WDS_WP_Large_Options {
 
 	protected function __construct() {
 		add_action( 'init', array( $this, 'register_post_type' ), 1 );
-	}
-
-	public function register_post_type() {
-		register_post_type( self::POST_TYPE, array(
-			'publicly_queryable'  => false,
-			'capability_type'     => 'wlo_debug',
-			'public'              => false,
-			'exclude_from_search' => true,
-			'rewrite'             => false,
-			'has_archive'         => false,
-			'query_var'           => false,
-			'taxonomies'          => array(),
-			'show_ui'             => false,
-			'can_export'          => true,
-			'show_in_nav_menus'   => false,
-			'show_in_menu'        => false,
-			'show_in_admin_bar'   => false,
-			'delete_with_user'    => false,
-			'labels'              => array(
-				'name'          => 'Large Options',
-				'singular_name' => 'Large Option',
-			),
-		) );
 	}
 
 	/**
@@ -349,6 +325,29 @@ class WDS_WP_Large_Options {
 		return apply_filters( 'wds_wp_large_options_use_post_content', true, $option, $post_id );
 	}
 
+	public function register_post_type() {
+		register_post_type( self::POST_TYPE, array(
+			'publicly_queryable'  => false,
+			'capability_type'     => 'wlo_debug',
+			'public'              => false,
+			'exclude_from_search' => true,
+			'rewrite'             => false,
+			'has_archive'         => false,
+			'query_var'           => false,
+			'taxonomies'          => array(),
+			'show_ui'             => false,
+			'can_export'          => true,
+			'show_in_nav_menus'   => false,
+			'show_in_menu'        => false,
+			'show_in_admin_bar'   => false,
+			'delete_with_user'    => false,
+			'labels'              => array(
+				'name'          => 'Large Options',
+				'singular_name' => 'Large Option',
+			),
+		) );
+	}
+
 }
 
 function wdswplo() {
@@ -371,5 +370,4 @@ function wds_get_option( $option, $default = false ) {
 	return wdswplo()->get_option( $option );
 }
 
-
-wdswplo();
+wdswplo(); // Kick it off
