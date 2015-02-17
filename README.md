@@ -10,9 +10,9 @@ This library is a fork of the [original version](https://github.com/voceconnect/
 
 The API is very similar to the [WordPress Options API](http://codex.wordpress.org/Options_API) and is intended to be an optional replacement.
 
-* Get: `wlo_get_option` (use like `[get_option](http://codex.wordpress.org/Function_Reference/get_option)`)
-* Add: `wlo_add_option` (use like `[add_option](http://codex.wordpress.org/Function_Reference/add_option)`)
-* Update: `wlo_update_option` (use like `[update_option](http://codex.wordpress.org/Function_Reference/update_option)`)
-* Delete: `wlo_delete_option` (use like `[delete_option](http://codex.wordpress.org/Function_Reference/delete_option)`)
+* Get: `wds_get_option` (use like `[get_option](http://codex.wordpress.org/Function_Reference/get_option)`)
+* Add: `wds_add_option` (use like `[add_option](http://codex.wordpress.org/Function_Reference/add_option)`)
+* Update: `wds_update_option` (use like `[update_option](http://codex.wordpress.org/Function_Reference/update_option)`)
+* Delete: `wds_delete_option` (use like `[delete_option](http://codex.wordpress.org/Function_Reference/delete_option)`)
 
 **Note:** Plugin requires WordPress 4.1 or later.
