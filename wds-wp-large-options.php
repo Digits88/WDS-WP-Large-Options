@@ -27,60 +27,144 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-class WDS_WP_Large_Options {
+/**
+ * Stores each CMB2 instance
+ */
+abstract class WDS_WP_Large_Options {
 
 	const POST_TYPE = 'wlo_option';
 	const META_KEY  = 'wp-large-option-value';
 
-	protected $sanitized = array();
-	protected $post_ids  = array();
-	protected static $single_instance = null;
+	/**
+	 * Storage for all WDS_WP_Large_Option instances
+	 * @var   array
+	 * @since 2.0.0
+	 */
+	protected static $option_instances = array();
 
 	/**
-	 * Creates or returns an instance of this class.
-	 * @since  0.1.0
-	 * @return WDS_WP_Large_Options A single instance of this class.
+	 * Add WDS_WP_Large_Option instance to the storage
+	 * @since 2.0.0
+	 * @param WDS_WP_Large_Option object $option_instance
 	 */
-	public static function get_instance() {
-		if ( null === self::$single_instance ) {
-			self::$single_instance = new self();
-		}
-
-		return self::$single_instance;
+	protected static function add_instance( WDS_WP_Large_Option $option_instance ) {
+		self::$option_instances[ $option_instance->name ] = $option_instance;
 	}
 
-	protected function __construct() {
-		add_action( 'init', array( $this, 'register_post_type' ), 1 );
+	/**
+	 * Remove WDS_WP_Large_Option instance from storage
+	 * @since 2.0.0
+	 * @param string $option_name
+	 */
+	public static function remove_instace( $option_name ) {
+		if ( array_key_exists( $option_name, self::$option_instances ) ) {
+			unset( self::$option_instances[ $option_name ] );
+		}
+	}
+
+	/**
+	 * Retrieve a WDS_WP_Large_Option instance from storage
+	 * @since  2.0.0
+	 * @param  string $option_name
+	 * @return WDS_WP_Large_Option object
+	 */
+	public static function get_instance( $option_name ) {
+		$option_name = self::sanitize_option_name( $option_name );
+		if ( ! $option_name ) {
+			return false;
+		}
+
+		if ( empty( self::$option_instances ) || empty( self::$option_instances[ $option_name ] ) ) {
+			new WDS_WP_Large_Option( $option_name, true );
+		}
+
+		return self::$option_instances[ $option_name ];
+	}
+
+	/**
+	 * Sanitize option name.
+	 * @since  2.0.0
+	 * @param  string $option Option name
+	 * @return mixed          Sanitized option name
+	 */
+	protected static function sanitize_option_name( $option_name ) {
+		if ( ! $option_name ) {
+			return false;
+		}
+
+		$clean = sanitize_title( trim( $option_name ) );
+		$clean = empty( $clean ) ? false : $clean;
+
+		return $clean;
+	}
+
+	abstract protected function add_option( $value, $check_value_exists = true );
+	abstract protected function update_option( $new_value );
+	abstract protected function delete_option();
+	abstract protected function get_option( $default = false );
+}
+
+class WDS_WP_Large_Option extends WDS_WP_Large_Options {
+
+	protected $name    = '';
+	protected $value   = null;
+	protected $post    = null;
+	protected $post_id = 0;
+
+	/**
+	 * Magic getter for our object.
+	 * @param string $property
+	 * @throws Exception Throws an exception if the field is invalid.
+	 * @return mixed
+	 */
+	public function __get( $property ) {
+		switch ( $property ) {
+			case 'name':
+			case 'post':
+			case 'post_id':
+				return $this->{$property};
+			default:
+				throw new Exception( 'Invalid '. __CLASS__ .' property: ' . $property );
+		}
+	}
+
+	/**
+	 * Initiate a wds option instance
+	 * @since 2.0.0
+	 * @param string  $option_name Option name to retrieve
+	 * @param boolean $sanitized   Whether option name has already been sanitized (default, false)
+	 */
+	public function __construct( $option_name, $sanitized = false ) {
+		$this->name = $sanitized ? $option_name : parent::sanitize_option_name( $option_name );
+		parent::add_instance( $this );
 	}
 
 	/**
 	 * Add a new option.
-	 * @param  string $option
-	 * @param  mixed  $value
+	 * @param  mixed $value
+	 * @param  bool  $check_value_exists
 	 * @return bool
 	 */
-	public function add_option( $option, $value ) {
-		$option = $this->sanitize_option_name( $option );
-
-		if ( empty( $option ) ) {
+	public function add_option( $value, $check_value_exists = true ) {
+		if ( empty( $this->name ) ) {
 			return false;
 		}
 
-		if ( false !== $this->get_option( $option ) ) {
+		if ( $check_value_exists && false !== $this->get_option() ) {
 			return false;
 		}
 
 		// Set up our post args
 		$post_args = array(
-			'post_type'    => self::POST_TYPE,
-			'post_name'    => $option,
-			'post_title'   => $option,
+			'post_type'    => parent::POST_TYPE,
+			'post_name'    => $this->name,
+			'post_title'   => $this->name,
 			'post_status'  => 'publish',
 		);
 
 		// Use post_content by default
-		if ( $use_post_content = $this->use_post_content( $option ) ) {
-			$post_args['post_content'] = wp_json_encode( $value );
+		if ( $use_post_content = $this->use_post_content() ) {
+			$post_args['post_content'] = maybe_serialize( $value );
 		}
 
 		// do insert
@@ -89,94 +173,113 @@ class WDS_WP_Large_Options {
 
 		// If not using post_content, update the post-meta
 		if ( ! $use_post_content && $success ) {
-			$success = update_post_meta( $post_id, self::META_KEY, $value );
+			$success = update_post_meta( $post_id, parent::META_KEY, $value );
 		}
 
 		if ( ! $success ) {
 			return false;
 		}
 
-		$this->post_ids[ $option ] = $post_id;
-		wp_cache_set( 'wlo_option_id_' . $option, $post_id );
-		do_action( "add_wlo_option_{$option}", $option, $value );
-		do_action( 'added_wlo_option', $option, $value );
+		$this->post_id = $post_id;
+		$this->value   = $value;
+		wp_cache_set( 'wlo_option_id_' . $this->name, $post_id );
+
+		do_action( "add_wlo_option_{$this->name}", $this->name, $value );
+		do_action( 'added_wlo_option', $this->name, $value );
 
 		return true;
 	}
 
 	/**
 	 * Update or add an option
-	 * @param  string $option
-	 * @param  mixed  $newvalue
+	 * @param  mixed $new_value
 	 * @return bool
 	 */
-	public function update_option( $option, $newvalue ) {
-		$option = $this->sanitize_option_name( $option );
-		if ( empty( $option ) ) {
+	public function update_option( $new_value ) {
+		if ( empty( $this->name ) ) {
 			return false;
 		}
 
-		$oldvalue = $this->get_option( $option );
+		$old_value = $this->get_option();
 
 		/**
 		 * Filter a wlo option before its value is (maybe) serialized and updated.
 		 *
 		 * @since 3.9.0
 		 *
-		 * @param mixed  $newvalue  The new, unserialized option value.
+		 * @param mixed  $new_value The new, unserialized option value.
 		 * @param string $option    Name of the option.
 		 * @param mixed  $old_value The old option value.
 		 */
-		$value = apply_filters( 'pre_update_wlo_option', $newvalue, $option, $old_value );
+		$new_value = apply_filters( 'pre_update_wlo_option', $new_value, $this->name, $old_value );
 
 		// If the new and old values are the same, no need to update.
-		if ( $newvalue === $oldvalue ) {
+		if ( $new_value === $old_value ) {
 			return false;
 		}
 
-		if ( false === $oldvalue ) {
-			return $this->add_option( $option, $newvalue );
+		// If no old value, need to add the option
+		if ( false === $old_value ) {
+			return $this->add_option( $new_value, false );
 		}
 
-		$post_id = $this->get_option_post_id( $option );
+		// If no new value, need to delete the option
+		if ( ! $new_value ) {
+			return $this->delete_option();
+		}
 
-		if ( ! $this->update_post_value( $post_id, $newvalue ) ) {
+		// Something broke?
+		if ( ! $this->update_post_value( $new_value ) ) {
 			return false;
 		}
 
-		do_action( "update_wlo_option_{$option}", $oldvalue, $newvalue );
-		do_action( 'updated_wlo_option', $option, $oldvalue, $newvalue );
+		do_action( "update_wlo_option_{$this->name}", $old_value, $new_value );
+		do_action( 'updated_wlo_option', $this->name, $old_value, $new_value );
 
+		$this->value = $new_value;
 		return true;
 	}
 
 	/**
 	 * Deletes the option
-	 * @param  string $option
 	 * @return bool
 	 */
-	public function delete_option( $option ) {
-		return ( $post_id = $this->get_option_post_id( $option ) )
-			? wp_delete_post( $post_id, true )
-			: false;
+	public function delete_option() {
+		if ( empty( $this->name ) ) {
+			return false;
+		}
+
+		$post_id = $this->get_option_post_id( $this->name );
+
+		if ( $this->use_post_content() ) {
+			$deleted = $post_id ? wp_delete_post( $post_id, true ) : false;
+		} else {
+			$deleted = delete_post_meta( $post_id, parent::META_KEY );
+		}
+
+		if ( $deleted ) {
+			wp_cache_delete( 'wlo_option_id_' . $this->name );
+			$this->value   = null;
+			$this->post_id = 0;
+		}
+
+		return !! $deleted;
 	}
 
 	/**
 	 * Returns the option. Falls back to get_option (useful if migrating)
-	 * @param  string $option
 	 * @param  mixed  $default
 	 * @return mixed
 	 */
-	public function get_option( $option, $default = false ) {
-		$option = $this->sanitize_option_name( $option );
-		if ( empty( $option ) ) {
+	public function get_option( $default = false ) {
+		if ( empty( $this->name ) ) {
 			return false;
 		}
 
 		/**
 		 * Filter the value of an existing wlo option before it is retrieved.
 		 *
-		 * The dynamic portion of the hook name, `$option`, refers to the option name.
+		 * The dynamic portion of the hook name, `$this->name`, refers to the option name.
 		 *
 		 * Passing a non-false value to the filter will short-circuit retrieving
 		 * the option value, returning the passed value instead.
@@ -186,7 +289,7 @@ class WDS_WP_Large_Options {
 		 * @param bool|mixed $pre_option Value to return instead of the option value.
 		 *                               Default false to skip it.
 		 */
-		if ( false !== ( $pre = apply_filters( 'pre_wlo_option_' . $option, false ) ) ) {
+		if ( false !== ( $pre = apply_filters( 'pre_wlo_option_' . $this->name, false ) ) ) {
 			return $pre;
 		}
 
@@ -198,38 +301,41 @@ class WDS_WP_Large_Options {
 			return false;
 		}
 
-		$post_id = $this->get_option_post_id( $option );
+		if ( $this->value ) {
+			return $this->value;
+		}
 
-		if ( ! $post_id ) {
+		if ( $this->get_option_post_id( $this->name ) ) {
+			$value = $this->get_post_value( $this->name );
+		} else {
 			/**
 			 * If no post id, let's see if a normal option exists
 			 * to disable get_option checking:
-			 * 	add_action( 'wds_wp_large_options_get_option_fallback', '__return_false' );
+			 * 	add_filter( 'wds_wp_large_options_get_option_fallback', '__return_false' );
 			 */
-			return apply_filters( 'wds_wp_large_options_get_option_fallback', true )
-				? get_option( $option, $default )
+			$value = apply_filters( 'wds_wp_large_options_get_option_fallback', true )
+				? get_option( $this->name, $default )
 				: $default;
 		}
 
-		$value = $this->get_post_value( $post_id, $option );
-
-		return $value ? $value : $default;
+		$this->value = $value ? $value : $default;
+		return $this->value;
 	}
 
 	/**
 	 * Retrieve value from post.
 	 * Pulls from post_content by default, but can be filtered to use post-meta
 	 * @since  2.0.0
-	 * @param  int   $post_id Post id of post to retrieve value from
-	 * @return mixed          Value
+	 * @return mixed Value
 	 */
-	protected function get_post_value( $post_id, $option ) {
+	protected function get_post_value() {
+		$post_id = $this->get_option_post_id();
 
-		if ( $this->use_post_content( $option, $post_id ) ) {
-			$value = get_post_field( 'post_content', $post_id, 'raw' );
-			$value = $value ? json_decode( $value ) : false;
+		if ( $this->use_post_content() ) {
+			$post = get_post( $post_id );
+			$value = isset( $post->post_content ) ? maybe_unserialize( $post->post_content ) : false;
 		} else {
-			$value = get_post_meta( $post_id, self::META_KEY, 1 );
+			$value = get_post_meta( $post_id, parent::META_KEY, 1 );
 		}
 
 		return $value;
@@ -239,135 +345,146 @@ class WDS_WP_Large_Options {
 	 * Update value to post.
 	 * Saves to post_content by default, but can be filtered to use post-meta
 	 * @since  2.0.0
-	 * @param  int   $post_id Post id of post to retrieve value from
-	 * @param  mixed $value   Value to save
-	 * @return mixed          If update was successful
+	 * @param  mixed $new_value Value to save
+	 * @return mixed            If update was successful
 	 */
-	protected function update_post_value( $post_id, $option ) {
+	protected function update_post_value( $new_value ) {
+		$post_id = $this->get_option_post_id( $this->name );
 
-		if ( $this->use_post_content( $option, $post_id ) ) {
+		if ( $this->use_post_content() ) {
 
 			remove_all_filters( 'wp_insert_post_data' );
 			add_filter( 'wp_insert_post_empty_content', '__return_false' );
-			$success = wp_update_post( array( 'ID' => $post_id, 'post_content' => $option ? wp_json_encode( $option ) : '' ) );
+			$success = wp_update_post( array( 'ID' => $post_id, 'post_content' => $new_value ? maybe_serialize( $new_value ) : '' ) );
 			remove_filter( 'wp_insert_post_empty_content', '__return_false' );
 
 		} else {
-			$success = update_post_meta( $post_id, self::META_KEY, $newvalue );
+			$success = update_post_meta( $post_id, parent::META_KEY, $new_value );
 		}
 
 		return !! $success;
 	}
 
 	/**
-	 * Returns the post that is storing the specific option
-	 * @param  string $option
-	 * @return bool|object
+	 * Returns the post id of this specific option
+	 * @return bool
 	 */
-	protected function get_option_post_id( $option ) {
-		$option = $this->sanitize_option_name( $option );
-		if ( empty( $option ) ) {
+	protected function get_option_post_id() {
+		if ( empty( $this->name ) ) {
 			return false;
 		}
 
-		if ( array_key_exists( $option, $this->post_ids ) ) {
-			return $this->post_ids[ $option ];
+		if ( $this->post_id ) {
+			return $this->post_id;
 		}
 
-		if ( false === ( $post_id = wp_cache_get( 'wlo_option_id_' . $option ) ) ) {
-			$posts = get_posts( array(
-				'post_type'      => self::POST_TYPE,
-				'posts_per_page' => 1,
-				'name'           => $option,
-				'fields'         => 'ids',
-			) );
+		$this->post_id = absint( wp_cache_get( 'wlo_option_id_' . $this->name ) );
+		if ( ! $this->post_id ) {
 
-			if ( ! empty( $posts ) && 1 === count( $posts ) ) {
-				$post_id = $posts[0];
-				wp_cache_set( 'wlo_option_id_' . $option, $post_id );
+			$post = get_page_by_title( $this->name, OBJECT, parent::POST_TYPE );
+
+			if ( ! empty( $post ) ) {
+				$this->post_id = $post->ID;
+				wp_cache_set( 'wlo_option_id_' . $this->name, $this->post_id );
 			}
 		}
 
-		// We'll store the post_id to the object
-		$this->post_ids[ $option ] = $post_id;
-		return $post_id;
+		return $this->post_id;
 	}
 
 	/**
-	 * Sanitize option name. Because sanitize_title can be expensive,
-	 * We'll store the results to the object
+	 * Whether plugin should use the post_content as the default storage location
 	 * @since  2.0.0
-	 * @param  string $option Option name
-	 * @return mixed          Sanitized option name
+	 * @return bool
 	 */
-	protected function sanitize_option_name( $option ) {
-		if ( ! $option ) {
-			return false;
-		}
-
-		if ( array_key_exists( $option, $this->sanitized ) ) {
-			return $this->sanitized[ $option ];
-		}
-
-		$clean = sanitize_title( trim( $option ) );
-		$clean = empty( $clean ) ? false : $clean;
-
-		$this->sanitized[ $option ] = $clean;
-		return $clean;
-	}
-
-	protected function use_post_content( $option, $post_id = 0 ) {
+	protected function use_post_content() {
 		/**
-		 * Use json_encoded data in the post_content field by default. Cannot store objects
+		 * Use data in the post_content field by default. Cannot store objects
 		 * to use post-metat instead:
 		 * 	add_action( 'wds_wp_large_options_use_post_content', '__return_false' );
 		 */
-		return apply_filters( 'wds_wp_large_options_use_post_content', true, $option, $post_id );
-	}
-
-	public function register_post_type() {
-		register_post_type( self::POST_TYPE, array(
-			'publicly_queryable'  => false,
-			'capability_type'     => 'wlo_debug',
-			'public'              => false,
-			'exclude_from_search' => true,
-			'rewrite'             => false,
-			'has_archive'         => false,
-			'query_var'           => false,
-			'taxonomies'          => array(),
-			'show_ui'             => false,
-			'can_export'          => true,
-			'show_in_nav_menus'   => false,
-			'show_in_menu'        => false,
-			'show_in_admin_bar'   => false,
-			'delete_with_user'    => false,
-			'labels'              => array(
-				'name'          => 'Large Options',
-				'singular_name' => 'Large Option',
-			),
-		) );
+		return apply_filters( 'wds_wp_large_options_use_post_content', true, $this->name, $this->post_id );
 	}
 
 }
 
-function wdswplo() {
-	return WDS_WP_Large_Options::get_instance();
+/**
+ * Register our option replacement cpt
+ * @since  2.0.0
+ */
+function wdswplo_register_post_type() {
+	register_post_type( WDS_WP_Large_Options::POST_TYPE, array(
+		'publicly_queryable'  => false,
+		'capability_type'     => 'wlo_debug',
+		'public'              => false,
+		'exclude_from_search' => true,
+		'rewrite'             => false,
+		'has_archive'         => false,
+		'query_var'           => false,
+		'taxonomies'          => array(),
+		'show_ui'             => false,
+		'can_export'          => true,
+		'show_in_nav_menus'   => false,
+		'show_in_menu'        => false,
+		'show_in_admin_bar'   => false,
+		'delete_with_user'    => false,
+		'labels'              => array(
+			'name'          => 'Large Options',
+			'singular_name' => 'Large Option',
+		),
+	) );
+}
+add_action( 'init', 'wdswplo_register_post_type', 1 );
+
+/**
+ * Get a WDS_WP_Large_Options object by name
+ * @since  2.0.0
+ * @param  string  $option_name
+ * @return WDS_WP_Large_Option object
+ */
+function wdswplo( $option_name ) {
+	return WDS_WP_Large_Options::get_instance( $option_name );
 }
 
-function wds_add_option( $option, $value ) {
-	return wdswplo()->add_option( $option, $value );
+/**
+ * Add a new option
+ * @param  string $option_name
+ * @param  mixed  $value
+ * @return bool
+ */
+function wds_add_option( $option_name, $value ) {
+	$instance = wdswplo( $option_name );
+	return $instance ? $instance->add_option( $value ) : false;
 }
 
-function wds_update_option( $option, $newvalue ) {
-	return wdswplo()->update_option( $option, $newvalue );
+/**
+ * Update or add an option
+ * @param  string $option_name
+ * @param  mixed  $new_value
+ * @return bool
+ */
+function wds_update_option( $option_name, $new_value ) {
+	$instance = wdswplo( $option_name );
+	return $instance ? $instance->update_option( $new_value ) : false;
 }
 
-function wds_delete_option( $option ) {
-	return wdswplo()->delete_option( $option );
+/**
+ * Deletes the option
+ * @param  string $option_name
+ * @return bool
+ */
+function wds_delete_option( $option_name ) {
+	$instance = wdswplo( $option_name );
+	return $instance ? $instance->delete_option() : false;
 }
 
-function wds_get_option( $option, $default = false ) {
-	return wdswplo()->get_option( $option );
+/**
+ * Returns the option
+ * @param  string $option_name
+ * @param  mixed  $default
+ * @return bool
+ */
+function wds_get_option( $option_name, $default = false ) {
+	$instance = wdswplo( $option_name );
+	return $instance ? $instance->get_option() : false;
 }
-
-wdswplo(); // Kick it off
