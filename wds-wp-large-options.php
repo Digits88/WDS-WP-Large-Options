@@ -312,11 +312,11 @@ class WDS_WP_Large_Option extends WDS_WP_Large_Options {
 			$value = $this->get_post_value( $this->name );
 		} else {
 			/**
-			 * If no post id, let's see if a normal option exists
-			 * to disable get_option checking:
-			 * 	add_filter( 'wds_wp_large_options_get_option_fallback', '__return_false' );
+			 * If no post id, should we see if a normal option exists?
+			 * to enable get_option fallback checking:
+			 * 	add_filter( 'wds_wp_large_options_get_option_fallback', '__return_true' );
 			 */
-			$value = apply_filters( 'wds_wp_large_options_get_option_fallback', true )
+			$value = apply_filters( 'wds_wp_large_options_get_option_fallback', false )
 				? get_option( $this->name, $default )
 				: $default;
 		}
