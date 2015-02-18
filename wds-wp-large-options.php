@@ -28,7 +28,7 @@
  */
 
 /**
- * Stores each CMB2 instance
+ * A WDS_WP_Large_Option factory/storage
  */
 abstract class WDS_WP_Large_Options {
 
@@ -104,6 +104,9 @@ abstract class WDS_WP_Large_Options {
 	abstract protected function get_option( $default = false );
 }
 
+/**
+ * An object for setting/getting post-type options
+ */
 class WDS_WP_Large_Option extends WDS_WP_Large_Options {
 
 	protected $name    = '';
